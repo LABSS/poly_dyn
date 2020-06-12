@@ -1,2 +1,2 @@
 # poly_dyn
-Deffuant model for study democracy perception in the European population
+Deffuant model for studying democracy perception in the European population
