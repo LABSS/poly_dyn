@@ -1,6 +1,6 @@
 ;; This is an adaptation of the  Relative Agreement Model of opinion dynamics (Deffuant et al. 2002)
-;; as implemented by Meadows and Cliff (2012) with extensions that enable the exploration of 
-;; the effect of network structure. 
+;; as implemented by Meadows and Cliff (2012) with extensions that enable the exploration of
+;; the effect of network structure.
 ;; Code for the generation of networks is borrowed from the Small World  and
 ;; Preferential Attachment Models of the Netlogo Models Libary (Wilensky, 1999)
 ;; 1/29/16
@@ -10,7 +10,7 @@ turtles-own [
   opinion     ;; min-opinion to max-opinion
   uncertainty ;; u-extreme to uncertainty-of-moderates-max
   p-type      ;; type of turtle (moderate or extreme)
-  
+
   node-clustering-coefficient
   distance-from-other-turtles
 ]
@@ -26,7 +26,7 @@ globals
                                        ;; y = 0.0 => central convergence
                                        ;; y = 0.5 => bipolar convergence
                                        ;; y = 1.0 => single extreme convergence
-  
+
   clustering-coefficient               ;; the clustering coefficient of the network; this is the
                                        ;; average of clustering coefficients of all turtles
   average-path-length                  ;; average path length of the network
@@ -61,30 +61,30 @@ end
 ;; Initializes the turtles
 to setup-turtles
   clear-turtles
-  
+
   ifelse network-type = "small world" [
     ;; adapted from Small World model
     create-turtles number-of-people [
       init-turtle self
     ]
-      
+
     let success? false
     while [not success?] [
       ;; we need to find initial values for lattice
       wire-them
-      
+
       ;;calculate average path length and clustering coefficient for the lattice
       set success? do-calculations
       layout-circle (sort turtles) max-pxcor - 1
     ]
-    
+
     ;; setting the values for the initial lattice
     set clustering-coefficient-of-lattice clustering-coefficient
     set average-path-length-of-lattice average-path-length
     set number-rewired 0
     rewire-all
   ]
-  
+
   [ifelse network-type = "fully connected" [
       create-turtles number-of-people [
         init-turtle self
@@ -92,7 +92,7 @@ to setup-turtles
       ask turtles [create-links-with other turtles]
       layout-circle (sort turtles) max-pxcor - 1
     ]
-  
+
   [if network-type = "preferential attachment" [
     ;; adapted from Preferential Attachment model
     make-node nobody
@@ -107,7 +107,7 @@ to setup-turtles
   ]
   ]
   ]
-  
+
   let r do-calculations
 end
 
@@ -135,7 +135,7 @@ to init-turtle [p]
       set p-type "extreme"
     ]
     [ifelse who < n-moderate + half-n-extreme [
-        set opinion (min-moderate-opinion + random-float (max-moderate-opinion - min-moderate-opinion)) 
+        set opinion (min-moderate-opinion + random-float (max-moderate-opinion - min-moderate-opinion))
         set uncertainty uncertainty-of-moderates
         set p-type "moderate"
     ]
@@ -147,12 +147,12 @@ to init-turtle [p]
     ]
     if p-type = "extreme" [
       set color red
-      
+
       ]
     if p-type = "moderate" [set color white]
   ]
 end
-    
+
 
 
 ;; calculates the relative agreement between two turtles
@@ -172,7 +172,7 @@ end
 ;;     p1      - the first turtle
 ;;     p2      - the second turtle
 ;; reports:
-;;    the-overlap - the overlap between the bounds 
+;;    the-overlap - the overlap between the bounds
 to-report overlap [p1 p2]
   let p1-bounds (turtle-bounds p1)
   let p2-bounds (turtle-bounds p2)
@@ -342,7 +342,7 @@ to-report do-calculations
   ;; set up a variable so we can report if the network is disconnected
   let connected? true
 
- 
+
   ;; find the path lengths in the network
   find-path-lengths
   let num-connected-pairs sum [length remove infinity (remove 0 distance-from-other-turtles)] of turtles
@@ -517,10 +517,10 @@ end
 GRAPHICS-WINDOW
 450
 349
-731
-651
-45
-45
+729
+629
+-1
+-1
 2.98
 1
 10
@@ -631,7 +631,7 @@ number-of-people
 number-of-people
 20
 100
-100
+100.0
 1
 1
 NIL
@@ -661,7 +661,7 @@ max-opinion
 max-opinion
 0.5
 1.5
-1
+1.0
 0.5
 1
 NIL
@@ -1191,9 +1191,8 @@ false
 0
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
-
 @#$#@#$#@
-NetLogo 5.2.0
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -1209,7 +1208,6 @@ true
 0
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
-
 @#$#@#$#@
 0
 @#$#@#$#@
