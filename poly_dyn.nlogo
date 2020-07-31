@@ -1,3 +1,4 @@
+extensions [rnd csv]
 ;; This is an adaptation of the  Relative Agreement Model of opinion dynamics (Deffuant et al. 2002)
 ;; as implemented by Meadows and Cliff (2012) with extensions that enable the exploration of
 ;; the effect of network structure.
@@ -5,174 +6,281 @@
 ;; Preferential Attachment Models of the Netlogo Models Libary (Wilensky, 1999)
 ;; 1/29/16
 ;; David Adelberg and Dr. Spiro Maroulis
+;;LUCA
+;;
 
 turtles-own [
-  opinion     ;; min-opinion to max-opinion
-  uncertainty ;; u-extreme to uncertainty-of-moderates-max
-  p-type      ;; type of turtle (moderate or extreme)
-
-  node-clustering-coefficient
-  distance-from-other-turtles
+  o_openness
+  o_insttrust
+  o_demtrust
+  ;;LUCA
+  ;;
+  ;;
+  s_age_class
+  s_gender
+  s_country_area
+  ;;LUCA
+  ;;
+  mu
+  theta
+  ;;
+  uncertainty
 ]
+globals [init_data global_gender global_age_class global_country_area global_s]
 
 links-own
 [
   rewired?
 ]
 
-globals
-[
-  y                                    ;; a convergence indicator
-                                       ;; y = 0.0 => central convergence
-                                       ;; y = 0.5 => bipolar convergence
-                                       ;; y = 1.0 => single extreme convergence
 
-  clustering-coefficient               ;; the clustering coefficient of the network; this is the
-                                       ;; average of clustering coefficients of all turtles
-  average-path-length                  ;; average path length of the network
-  clustering-coefficient-of-lattice    ;; the clustering coefficient of the initial lattice
-  average-path-length-of-lattice       ;; average path length of the initial lattice
-  infinity                             ;; a very large number.
-                                         ;; used to denote distance between two turtles which
-                                         ;; don't have a connected or unconnected path between them
-  number-rewired                       ;; number of edges that have been rewired. used for plots.
-  rewire-one?                          ;; these two variables record which button was last pushed
-  rewire-all?
-]
 
 to setup
   ca
   set-default-shape turtles "person"
-  init-globals
-  setup-turtles
+
+
+
+  set init_data csv:from-file "file_init.csv"
+  set init_data but-first init_data                                                                       ;; tranne il primo
+  set global_s csv:from-file "file_global.csv"
+  set global_gender []                                                                                    ;; i sessi con le loro probabilità, calcolate dalla survey
+  set global_age_class []                                                                                 ;; le classi di età con le loro probabilità, calcolate dalla survey
+  set global_country_area []                                                                             ;; le aree geografiche con le loro probabilità, calcolate dalla survey
+  let c 0
+  repeat 3 [
+    let raw_global item c global_s
+    if (item 0 raw_global) = "global_gender" [
+      let j 1
+      let l 2
+
+      repeat l [
+        set global_gender lput (list (item j raw_global) (item (j + 1) raw_global)) global_gender
+        show raw_global
+        show global_gender
+        set j (j + 2)
+
+      ]
+    ]
+    if (item 0 raw_global) = "global_age_class" [
+      let j 1
+      let l 3
+      repeat l [
+        set global_age_class lput (list (item j raw_global) (item (j + 1) raw_global)) global_age_class
+        set j (j + 2)
+      ]
+    ]
+    if (item 0 raw_global) = "global_country_area" [
+      let j 1
+      let l 5
+      repeat l [
+        set global_country_area lput (list (item j raw_global) (item (j + 1) raw_global)) global_country_area
+        set j (j + 2)
+      ]
+    ]
+
+   set c c + 1
+  ]
+  crt number-of-people [
+    setxy random-xcor random-ycor
+    set shape "person"
+    set uncertainty 0
+
+    set s_gender first rnd:weighted-one-of-list global_gender [ [p] -> last p ]                                             ;; setta il sesso e la sua distribuzione globale per segmentazione
+    set s_age_class first rnd:weighted-one-of-list global_age_class [ [p] -> last p ]                                       ;; setta la classe di età e la sua distribuzione globale per segmentazione
+    set s_country_area first rnd:weighted-one-of-list global_country_area [ [p] -> last p ]                                 ;; setta l'area geografica e la sua distribuzione globale per segmentazione
+    let riga filter [ i -> (item 0 i) = s_gender and (item 1 i) = s_age_class  and (item 2 i) = s_country_area] init_data   ;; carico il file di inizializzazione, con i valori delle opinioni e delle variabili di segmentazione
+    set riga (item 0 riga)                                                                                                  ;; è una lista di liste, seleziono il primo item
+
+    set o_openness random-normal (item 3 riga) ( (item 4 riga) * 0.5 )                                                      ;; non voglio il valore esatto ma un valore distribuito normalmente con quella media e quella varianza dal file di inizializzazione
+    set o_insttrust random-normal (item 5 riga) ( (item 6 riga) * 0.5 )
+    set o_demtrust random-normal (item 7 riga) ( (item 8 riga) * 0.5 )
+
+    if o_openness < 0 [ set o_openness 0 ]                                                                                  ;; le opinioni devono essere nella scala 0-10
+    if o_insttrust < 0 [ set o_insttrust 0 ]
+    if o_demtrust < 0 [ set o_demtrust 0 ]
+
+    if o_openness > 10 [ set o_openness 10 ]
+    if o_insttrust > 10 [ set o_insttrust 10 ]
+    if o_demtrust > 10 [ set o_demtrust 10 ]
+
+   ; ask turtles [
+   ;   if gnd = 4444 age_class=555  country=32
+    ;  dalla tabella cvs carica opness trust (mean e dev std) in rnd normale]
+  ]
+
   reset-ticks
 end
 
+
 to go
+  ;; LUCA due utilizzi
+  ;; 1) inserisco opinioni dalla survey e vedo come evolvono (inserendo fattori esogeni)
+  ;; 2) opinioni a caso, vedere se lla fine corrispondono a quelle della survey. Abbiamo realizzato un modello, e il modello è il codice
+  ;;
   repeat number-of-people [
     let p1 one-of turtles
-    let p2 one-of [link-neighbors] of p1
+    let p2 one-of other turtles
     interact p1 p2
   ]
-  update-globals
+  ; update-globals
   tick
 end
 
 ;; Initializes the turtles
-to setup-turtles
-  clear-turtles
+;to setup-turtles
+;  clear-turtles
+;
+;  ifelse network-type = "small world" [
+;    ;; adapted from Small World model
+;    create-turtles number-of-people [
+;      init-turtle self
+;    ]
+;
+;    let success? false
+;    while [not success?] [
+;      ;; we need to find initial values for lattice
+;      wire-them
+;
+;      ;;calculate average path length and clustering coefficient for the lattice
+;      set success? do-calculations
+;      layout-circle (sort turtles) max-pxcor - 1
+;    ]
+;
+;    ;; setting the values for the initial lattice
+;    set clustering-coefficient-of-lattice clustering-coefficient
+;    set average-path-length-of-lattice average-path-length
+;    set number-rewired 0
+;    rewire-all
+;  ]
+;
+;  [ifelse network-type = "fully connected" [
+;      create-turtles number-of-people [
+;        init-turtle self
+;      ]
+;      ask turtles [create-links-with other turtles]
+;      layout-circle (sort turtles) max-pxcor - 1
+;    ]
+;
+;  [if network-type = "preferential attachment" [
+;    ;; adapted from Preferential Attachment model
+;    make-node nobody
+;    make-node turtle 0
+;    let m 1
+;    while [m < number-of-people - 1] [
+;      make-node find-partner
+;      set m m + 1
+;      layout
+;    ]
+;    ask turtles [init-turtle self]
+;  ]
+;  ]
+;  ]
+;
+;  let r do-calculations
+;end
+;
+;to update-globals
+;  set y calculate-y
+;end
+;
+;;; The following procedures are adapted from the Meadows and Cliff (2012)
+;
+;to init-globals
+;  set min-moderate-opinion (min-opinion + extreme-distance)
+;  set max-moderate-opinion (max-opinion - extreme-distance)
+;  set infinity 99999
+;end
+;
+;to init-turtle [p]
+;  let n-extremists (proportion-of-extremists *  number-of-people )
+;  let half-n-extreme int (0.5 + (n-extremists / 2.0))
+;  let n-moderate number-of-people - n-extremists
+;  ask p [
+;    set color gray + 2
+;    ifelse who < half-n-extreme [
+;      set opinion (max-opinion - (random-float extreme-distance))
+;      set uncertainty uncertainty-of-extremists
+;      set p-type "extreme"
+;    ]
+;    [ifelse who < n-moderate + half-n-extreme [
+;        set opinion (min-moderate-opinion + random-float (max-moderate-opinion - min-moderate-opinion))
+;        set uncertainty uncertainty-of-moderates
+;        set p-type "moderate"
+;    ]
+;    [
+;      set opinion (min-opinion + random-float (extreme-distance))
+;      set uncertainty uncertainty-of-extremists
+;      set p-type "extreme"
+;    ]
+;    ]
+;    if p-type = "extreme" [
+;      set color red
+;
+;      ]
+;    if p-type = "moderate" [set color white]
+;  ]
+;end
+;
+;
+;
+;;; calculates the relative agreement between two turtles
+;;; arguments:
+;;;     p1    - the first turtle
+;;;     p2    - the second turtle
+;;; reports:
+;;;     agree - the relative agreement between the two turtles
+;to-report relative-agreement [p1 p2]
+;  let the-overlap overlap p1 p2
+;  let agree ((the-overlap / ([uncertainty] of p1)) - 1)
+;  report agree
+;end
+;
+;;; calculates the overlap between two turtless' bounds
+;;; arguments:
+;;;     p1      - the first turtle
+;;;     p2      - the second turtle
+;;; reports:
+;;;    the-overlap - the overlap between the bounds
 
-  ifelse network-type = "small world" [
-    ;; adapted from Small World model
-    create-turtles number-of-people [
-      init-turtle self
+;
+;;; calculates the upper and lower bounds on a turtle's opinion
+;;; arguments:
+;;;    p      - the turtle
+;;; reports:
+;;;    bounds - a list containing the lower and upper bounds on the turtle's opinion.
+
+;
+
+;; Makes p1 and p2 interact according to the relative agreement model
+to interact [u v]
+
+  let the-overlap overlap u v
+
+  if (the-overlap > [uncertainty] of u) [
+
+    let mu_w [mu] of u
+    let theta_w [theta] of u
+    ;; LUCA aggiungere la modifica di mu_w e theta_w sulla base del tabellone
+
+    if abs([o_openness] of u - [o_openness] of v) <= theta_w [
+      ask u [set o_openness (o_openness + mu_w * ([o_openness] of v - o_openness))]
+      ask v [set o_openness (o_openness + mu_w * ([o_openness] of u - o_openness))]
+    ]
+    if abs([o_insttrust] of u - [o_insttrust] of v) <= theta_w [
+      ask u [set o_insttrust (o_insttrust + mu_w * ([o_insttrust] of v - o_insttrust))]
+      ask v [set o_insttrust (o_insttrust + mu_w * ([o_insttrust] of u - o_insttrust))]
+    ]
+    if abs([o_demtrust] of u - [o_demtrust] of v) <= theta_w [
+      ask u [set o_demtrust (o_demtrust + mu_w * ([o_demtrust] of v - o_demtrust))]
+      ask v [set o_demtrust (o_demtrust + mu_w * ([o_demtrust] of u - o_demtrust))]
     ]
 
-    let success? false
-    while [not success?] [
-      ;; we need to find initial values for lattice
-      wire-them
 
-      ;;calculate average path length and clustering coefficient for the lattice
-      set success? do-calculations
-      layout-circle (sort turtles) max-pxcor - 1
-    ]
 
-    ;; setting the values for the initial lattice
-    set clustering-coefficient-of-lattice clustering-coefficient
-    set average-path-length-of-lattice average-path-length
-    set number-rewired 0
-    rewire-all
   ]
-
-  [ifelse network-type = "fully connected" [
-      create-turtles number-of-people [
-        init-turtle self
-      ]
-      ask turtles [create-links-with other turtles]
-      layout-circle (sort turtles) max-pxcor - 1
-    ]
-
-  [if network-type = "preferential attachment" [
-    ;; adapted from Preferential Attachment model
-    make-node nobody
-    make-node turtle 0
-    let m 1
-    while [m < number-of-people - 1] [
-      make-node find-partner
-      set m m + 1
-      layout
-    ]
-    ask turtles [init-turtle self]
-  ]
-  ]
-  ]
-
-  let r do-calculations
 end
 
-to update-globals
-  set y calculate-y
-end
-
-;; The following procedures are adapted from the Meadows and Cliff (2012)
-
-to init-globals
-  set min-moderate-opinion (min-opinion + extreme-distance)
-  set max-moderate-opinion (max-opinion - extreme-distance)
-  set infinity 99999
-end
-
-to init-turtle [p]
-  let n-extremists (proportion-of-extremists *  number-of-people )
-  let half-n-extreme int (0.5 + (n-extremists / 2.0))
-  let n-moderate number-of-people - n-extremists
-  ask p [
-    set color gray + 2
-    ifelse who < half-n-extreme [
-      set opinion (max-opinion - (random-float extreme-distance))
-      set uncertainty uncertainty-of-extremists
-      set p-type "extreme"
-    ]
-    [ifelse who < n-moderate + half-n-extreme [
-        set opinion (min-moderate-opinion + random-float (max-moderate-opinion - min-moderate-opinion))
-        set uncertainty uncertainty-of-moderates
-        set p-type "moderate"
-    ]
-    [
-      set opinion (min-opinion + random-float (extreme-distance))
-      set uncertainty uncertainty-of-extremists
-      set p-type "extreme"
-    ]
-    ]
-    if p-type = "extreme" [
-      set color red
-
-      ]
-    if p-type = "moderate" [set color white]
-  ]
-end
-
-
-
-;; calculates the relative agreement between two turtles
-;; arguments:
-;;     p1    - the first turtle
-;;     p2    - the second turtle
-;; reports:
-;;     agree - the relative agreement between the two turtles
-to-report relative-agreement [p1 p2]
-  let the-overlap overlap p1 p2
-  let agree ((the-overlap / ([uncertainty] of p1)) - 1)
-  report agree
-end
-
-;; calculates the overlap between two turtless' bounds
-;; arguments:
-;;     p1      - the first turtle
-;;     p2      - the second turtle
-;; reports:
-;;    the-overlap - the overlap between the bounds
 to-report overlap [p1 p2]
   let p1-bounds (turtle-bounds p1)
   let p2-bounds (turtle-bounds p2)
@@ -182,337 +290,319 @@ to-report overlap [p1 p2]
   report the-overlap
 end
 
-;; calculates the upper and lower bounds on a turtle's opinion
-;; arguments:
-;;    p      - the turtle
-;; reports:
-;;    bounds - a list containing the lower and upper bounds on the turtle's opinion.
 to-report turtle-bounds [p]
-  let p-lower (([opinion] of p) - ([uncertainty] of p))
-  let p-upper (([opinion] of p) + ([uncertainty] of p))
+  let p-lower (([o_openness] of p) - ([uncertainty] of p))
+  let p-upper (([o_openness] of p) + ([uncertainty] of p))
   let bounds list p-lower p-upper
   report bounds
 end
 
-;; Makes p1 and p2 interact according to the relative agreement model
-to interact [p1 p2]
-  let the-overlap overlap p1 p2
-  if (the-overlap > [uncertainty] of p1) [
-    let rel-agree relative-agreement p1 p2
-    let delta-op-p2 (adjustment-rate * rel-agree * (([opinion] of p1) - ([opinion] of p2)))
-    let delta-u-p2  (adjustment-rate * rel-agree * (([uncertainty] of p1) - ([uncertainty] of p2)))
-    ask p2 [
-      set opinion (opinion + delta-op-p2)
-      set uncertainty (uncertainty + delta-u-p2)
-    ]
-  ]
-end
-
-;; Calculates the y-value after a run
-to-report calculate-y
-  let moderates turtles with [p-type = "moderate"]
-  let moderate-count      count moderates
-  let p-prime-plus-count  count moderates with [opinion > max-moderate-opinion]
-  let p-prime-minus-count count moderates with [opinion < min-moderate-opinion]
-  let p-prime-plus p-prime-plus-count / moderate-count
-  let p-prime-minus p-prime-minus-count / moderate-count
-  set y sum map square list p-prime-plus p-prime-minus
-  report y
-end
-
-;; Squares num
-to-report square [num]
-  report num * num
-end
-
-;; The following procedures are from the Preferential Attachment Model
-;; in the NetLogo Models Library (Wilensky, 2005)
-
-to-report find-partner
-  report [one-of both-ends] of one-of links
-end
-
-;; used for creating a new node
-to make-node [old-node]
-  create-turtles 1
-  [
-    if old-node != nobody
-      [ create-link-with old-node
-        ;; position the new node near its partner
-        move-to old-node
-        fd 8
-      ]
-  ]
-end
-
-to layout
-  ;; the number 3 here is arbitrary; more repetitions slows down the
-  ;; model, but too few gives poor layouts
-  repeat 3 [
-    ;; the more turtles we have to fit into the same amount of space,
-    ;; the smaller the inputs to layout-spring we'll need to use
-    let factor sqrt count turtles
-    ;; numbers here are arbitrarily chosen for pleasing appearance
-    layout-spring turtles links (1 / factor) (20 / factor) (20 / factor)
-  ]
-  adjust-positions
-end
-
-to adjust-positions
-  ;; don't bump the edges of the world
-  let x-offset max [xcor] of turtles + min [xcor] of turtles
-  let y-offset max [ycor] of turtles + min [ycor] of turtles
-  ;; big jumps look funny, so only adjust a little each time
-  set x-offset limit-magnitude x-offset 0.1
-  set y-offset limit-magnitude y-offset 0.1
-  ask turtles [ setxy (xcor - x-offset / 2) (ycor - y-offset / 2) ]
-end
-
-to-report limit-magnitude [number limit]
-  if number > limit [ report limit ]
-  if number < (- limit) [ report (- limit) ]
-  report number
-end
-
-;; END
-
-;; The following procedures from the Small Worlds model
-;; in the Netlogo Models Library (Wilensky, 2005)
-
-to rewire-all
-
-  ;; make sure num-turtles is setup correctly; if not run setup first
-  if count turtles != number-of-people [
-    setup
-  ]
-
-  ;; record which button was pushed
-  set rewire-one? false
-  set rewire-all? true
-
-  ;; set up a variable to see if the network is connected
-  let success? false
-
-  ;; if we end up with a disconnected network, we keep trying, because the APL distance
-  ;; isn't meaningful for a disconnected network.
-  while [not success?] [
-    ;; kill the old lattice, reset neighbors, and create new lattice
-    ask links [ die ]
-    wire-them
-    set number-rewired 0
-
-    ask links [
-
-      ;; whether to rewire it or not?
-      if (random-float 1) < rewiring-probability
-      [
-        ;; "a" remains the same
-        let node1 end1
-        ;; if "a" is not connected to everybody
-        if [ count link-neighbors ] of end1 < (count turtles - 1)
-        [
-          ;; find a node distinct from node1 and not already a neighbor of node1
-          let node2 one-of turtles with [ (self != node1) and (not link-neighbor? node1) ]
-          ;; wire the new edge
-          ask node1 [ create-link-with node2 [ set color cyan  set rewired? true ] ]
-
-          set number-rewired number-rewired + 1  ;; counter for number of rewirings
-          set rewired? true
-        ]
-      ]
-      ;; remove the old edge
-      if (rewired?)
-      [
-        die
-      ]
-    ]
-
-    ;; check to see if the new network is connected and calculate path length and clustering
-    ;; coefficient at the same time
-    set success? do-calculations
-  ]
-end
-
-;; do-calculations reports true if the network is connected,
-;;   and reports false if the network is disconnected.
-;; (In the disconnected case, the average path length does not make sense,
-;;   or perhaps may be considered infinite)
-to-report do-calculations
-
-  ;; set up a variable so we can report if the network is disconnected
-  let connected? true
-
-
-  ;; find the path lengths in the network
-  find-path-lengths
-  let num-connected-pairs sum [length remove infinity (remove 0 distance-from-other-turtles)] of turtles
-
-  ;; In a connected network on number-of-people nodes, we should have N(N-1) measurements of distances between pairs,
-  ;; and none of those distances should be infinity.
-  ;; If there were any "infinity" length paths between nodes, then the network is disconnected.
-  ;; In that case, calculating the average-path-length doesn't really make sense.
-  ifelse ( num-connected-pairs != (count turtles * (count turtles - 1) ))
-  [
-      set average-path-length infinity
-      ;; report that the network is not connected
-      set connected? false
-  ]
-  [
-    set average-path-length (sum [sum distance-from-other-turtles] of turtles) / (num-connected-pairs)
-  ]
-  ;; find the clustering coefficient and add to the aggregate for all iterations
-  find-clustering-coefficient
-
-  ;; report whether the network is connected or not
-  report connected?
-end
-
-to-report in-neighborhood? [ hood ]
-  report ( member? end1 hood and member? end2 hood )
-end
-
-
-to find-clustering-coefficient
-  ifelse all? turtles [count link-neighbors <= 1]
-  [
-    ;; it is undefined
-    ;; what should this be?
-    set clustering-coefficient 0
-  ]
-  [
-    let total 0
-    ask turtles with [ count link-neighbors <= 1]
-      [ set node-clustering-coefficient "undefined" ]
-    ask turtles with [ count link-neighbors > 1]
-    [
-      let hood link-neighbors
-      set node-clustering-coefficient (2 * count links with [ in-neighborhood? hood ] /
-                                         ((count hood) * (count hood - 1)) )
-      ;; find the sum for the value at turtles
-      set total total + node-clustering-coefficient
-    ]
-    ;; take the average
-    set clustering-coefficient total / count turtles with [count link-neighbors > 1]
-  ]
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Path length computations ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Implements the Floyd Warshall algorithm for All Pairs Shortest Paths
-;; It is a dynamic programming algorithm which builds bigger solutions
-;; from the solutions of smaller subproblems using memoization that
-;; is storing the results.
-;; It keeps finding incrementally if there is shorter path through
-;; the kth node.
-;; Since it iterates over all turtles through k,
-;; so at the end we get the shortest possible path for each i and j.
-
-to find-path-lengths
-  ;; reset the distance list
-  ask turtles
-  [
-    set distance-from-other-turtles []
-  ]
-
-  let i 0
-  let j 0
-  let k 0
-  let node1 one-of turtles
-  let node2 one-of turtles
-  let node-count count turtles
-  ;; initialize the distance lists
-  while [i < node-count]
-  [
-    set j 0
-    while [j < node-count]
-    [
-      set node1 turtle i
-      set node2 turtle j
-      ;; zero from a node to itself
-      ifelse i = j
-      [
-        ask node1 [
-          set distance-from-other-turtles lput 0 distance-from-other-turtles
-        ]
-      ]
-      [
-        ;; 1 from a node to it's neighbor
-        ifelse [ link-neighbor? node1 ] of node2
-        [
-          ask node1 [
-            set distance-from-other-turtles lput 1 distance-from-other-turtles
-          ]
-        ]
-        ;; infinite to everyone else
-        [
-          ask node1 [
-            set distance-from-other-turtles lput infinity distance-from-other-turtles
-          ]
-        ]
-      ]
-      set j j + 1
-    ]
-    set i i + 1
-  ]
-  set i 0
-  set j 0
-  let dummy 0
-  while [k < node-count]
-  [
-    set i 0
-    while [i < node-count]
-    [
-      set j 0
-      while [j < node-count]
-      [
-        ;; alternate path length through kth node
-        set dummy ( (item k [distance-from-other-turtles] of turtle i) +
-                    (item j [distance-from-other-turtles] of turtle k))
-        ;; is the alternate path shorter?
-        if dummy < (item j [distance-from-other-turtles] of turtle i)
-        [
-          ask turtle i [
-            set distance-from-other-turtles replace-item j distance-from-other-turtles dummy
-          ]
-        ]
-        set j j + 1
-      ]
-      set i i + 1
-    ]
-    set k k + 1
-  ]
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;
-;;; Edge Operations ;;;
-;;;;;;;;;;;;;;;;;;;;;;;
-
-;; creates a new lattice
-to wire-them
-  ;; iterate over the turtles
-  let m 0
-  while [m < count turtles]
-  [
-    ;; make edges with the next two neighbors
-    ;; this makes a lattice with average degree of 4
-    make-edge turtle m
-              turtle ((m + 1) mod count turtles)
-    make-edge turtle m
-              turtle ((m + 2) mod count turtles)
-    set m m + 1
-  ]
-end
-
-;; connects the two turtles
-to make-edge [node1 node2]
-  ask node1 [ create-link-with node2  [
-    set rewired? false
-  ] ]
-end
-
-;; END
+;
+;;; Calculates the y-value after a run
+;to-report calculate-y
+;  let moderates turtles with [p-type = "moderate"]
+;  let moderate-count      count moderates
+;  let p-prime-plus-count  count moderates with [opinion > max-moderate-opinion]
+;  let p-prime-minus-count count moderates with [opinion < min-moderate-opinion]
+;  let p-prime-plus p-prime-plus-count / moderate-count
+;  let p-prime-minus p-prime-minus-count / moderate-count
+;  set y sum map square list p-prime-plus p-prime-minus
+;  report y
+;end
+;
+;;; Squares num
+;to-report square [num]
+;  report num * num
+;end
+;
+;;; The following procedures are from the Preferential Attachment Model
+;;; in the NetLogo Models Library (Wilensky, 2005)
+;
+;to-report find-partner
+;  report [one-of both-ends] of one-of links
+;end
+;
+;;; used for creating a new node
+;to make-node [old-node]
+;  create-turtles 1
+;  [
+;    if old-node != nobody
+;      [ create-link-with old-node
+;        ;; position the new node near its partner
+;        move-to old-node
+;        fd 8
+;      ]
+;  ]
+;end
+;
+;to layout
+;  ;; the number 3 here is arbitrary; more repetitions slows down the
+;  ;; model, but too few gives poor layouts
+;  repeat 3 [
+;    ;; the more turtles we have to fit into the same amount of space,
+;    ;; the smaller the inputs to layout-spring we'll need to use
+;    let factor sqrt count turtles
+;    ;; numbers here are arbitrarily chosen for pleasing appearance
+;    layout-spring turtles links (1 / factor) (20 / factor) (20 / factor)
+;  ]
+;  adjust-positions
+;end
+;
+;to adjust-positions
+;  ;; don't bump the edges of the world
+;  let x-offset max [xcor] of turtles + min [xcor] of turtles
+;  let y-offset max [ycor] of turtles + min [ycor] of turtles
+;  ;; big jumps look funny, so only adjust a little each time
+;  set x-offset limit-magnitude x-offset 0.1
+;  set y-offset limit-magnitude y-offset 0.1
+;  ask turtles [ setxy (xcor - x-offset / 2) (ycor - y-offset / 2) ]
+;end
+;
+;to-report limit-magnitude [number limit]
+;  if number > limit [ report limit ]
+;  if number < (- limit) [ report (- limit) ]
+;  report number
+;end
+;
+;;; END
+;
+;;; The following procedures from the Small Worlds model
+;;; in the Netlogo Models Library (Wilensky, 2005)
+;
+;to rewire-all
+;
+;  ;; make sure num-turtles is setup correctly; if not run setup first
+;  if count turtles != number-of-people [
+;    setup
+;  ]
+;
+;  ;; record which button was pushed
+;  set rewire-one? false
+;  set rewire-all? true
+;
+;  ;; set up a variable to see if the network is connected
+;  let success? false
+;
+;  ;; if we end up with a disconnected network, we keep trying, because the APL distance
+;  ;; isn't meaningful for a disconnected network.
+;  while [not success?] [
+;    ;; kill the old lattice, reset neighbors, and create new lattice
+;    ask links [ die ]
+;    wire-them
+;    set number-rewired 0
+;
+;    ask links [
+;
+;      ;; whether to rewire it or not?
+;      if (random-float 1) < rewiring-probability
+;      [
+;        ;; "a" remains the same
+;        let node1 end1
+;        ;; if "a" is not connected to everybody
+;        if [ count link-neighbors ] of end1 < (count turtles - 1)
+;        [
+;          ;; find a node distinct from node1 and not already a neighbor of node1
+;          let node2 one-of turtles with [ (self != node1) and (not link-neighbor? node1) ]
+;          ;; wire the new edge
+;          ask node1 [ create-link-with node2 [ set color cyan  set rewired? true ] ]
+;
+;          set number-rewired number-rewired + 1  ;; counter for number of rewirings
+;          set rewired? true
+;        ]
+;      ]
+;      ;; remove the old edge
+;      if (rewired?)
+;      [
+;        die
+;      ]
+;    ]
+;
+;    ;; check to see if the new network is connected and calculate path length and clustering
+;    ;; coefficient at the same time
+;    set success? do-calculations
+;  ]
+;end
+;
+;;; do-calculations reports true if the network is connected,
+;;;   and reports false if the network is disconnected.
+;;; (In the disconnected case, the average path length does not make sense,
+;;;   or perhaps may be considered infinite)
+;to-report do-calculations
+;
+;  ;; set up a variable so we can report if the network is disconnected
+;  let connected? true
+;
+;
+;  ;; find the path lengths in the network
+;  find-path-lengths
+;  let num-connected-pairs sum [length remove infinity (remove 0 distance-from-other-turtles)] of turtles
+;
+;  ;; In a connected network on number-of-people nodes, we should have N(N-1) measurements of distances between pairs,
+;  ;; and none of those distances should be infinity.
+;  ;; If there were any "infinity" length paths between nodes, then the network is disconnected.
+;  ;; In that case, calculating the average-path-length doesn't really make sense.
+;  ifelse ( num-connected-pairs != (count turtles * (count turtles - 1) ))
+;  [
+;      set average-path-length infinity
+;      ;; report that the network is not connected
+;      set connected? false
+;  ]
+;  [
+;    set average-path-length (sum [sum distance-from-other-turtles] of turtles) / (num-connected-pairs)
+;  ]
+;  ;; find the clustering coefficient and add to the aggregate for all iterations
+;  find-clustering-coefficient
+;
+;  ;; report whether the network is connected or not
+;  report connected?
+;end
+;
+;to-report in-neighborhood? [ hood ]
+;  report ( member? end1 hood and member? end2 hood )
+;end
+;
+;
+;to find-clustering-coefficient
+;  ifelse all? turtles [count link-neighbors <= 1]
+;  [
+;    ;; it is undefined
+;    ;; what should this be?
+;    set clustering-coefficient 0
+;  ]
+;  [
+;    let total 0
+;    ask turtles with [ count link-neighbors <= 1]
+;      [ set node-clustering-coefficient "undefined" ]
+;    ask turtles with [ count link-neighbors > 1]
+;    [
+;      let hood link-neighbors
+;      set node-clustering-coefficient (2 * count links with [ in-neighborhood? hood ] /
+;                                         ((count hood) * (count hood - 1)) )
+;      ;; find the sum for the value at turtles
+;      set total total + node-clustering-coefficient
+;    ]
+;    ;; take the average
+;    set clustering-coefficient total / count turtles with [count link-neighbors > 1]
+;  ]
+;end
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Path length computations ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;;; Implements the Floyd Warshall algorithm for All Pairs Shortest Paths
+;;; It is a dynamic programming algorithm which builds bigger solutions
+;;; from the solutions of smaller subproblems using memoization that
+;;; is storing the results.
+;;; It keeps finding incrementally if there is shorter path through
+;;; the kth node.
+;;; Since it iterates over all turtles through k,
+;;; so at the end we get the shortest possible path for each i and j.
+;
+;to find-path-lengths
+;  ;; reset the distance list
+;  ask turtles
+;  [
+;    set distance-from-other-turtles []
+;  ]
+;
+;  let i 0
+;  let j 0
+;  let k 0
+;  let node1 one-of turtles
+;  let node2 one-of turtles
+;  let node-count count turtles
+;  ;; initialize the distance lists
+;  while [i < node-count]
+;  [
+;    set j 0
+;    while [j < node-count]
+;    [
+;      set node1 turtle i
+;      set node2 turtle j
+;      ;; zero from a node to itself
+;      ifelse i = j
+;      [
+;        ask node1 [
+;          set distance-from-other-turtles lput 0 distance-from-other-turtles
+;        ]
+;      ]
+;      [
+;        ;; 1 from a node to it's neighbor
+;        ifelse [ link-neighbor? node1 ] of node2
+;        [
+;          ask node1 [
+;            set distance-from-other-turtles lput 1 distance-from-other-turtles
+;          ]
+;        ]
+;        ;; infinite to everyone else
+;        [
+;          ask node1 [
+;            set distance-from-other-turtles lput infinity distance-from-other-turtles
+;          ]
+;        ]
+;      ]
+;      set j j + 1
+;    ]
+;    set i i + 1
+;  ]
+;  set i 0
+;  set j 0
+;  let dummy 0
+;  while [k < node-count]
+;  [
+;    set i 0
+;    while [i < node-count]
+;    [
+;      set j 0
+;      while [j < node-count]
+;      [
+;        ;; alternate path length through kth node
+;        set dummy ( (item k [distance-from-other-turtles] of turtle i) +
+;                    (item j [distance-from-other-turtles] of turtle k))
+;        ;; is the alternate path shorter?
+;        if dummy < (item j [distance-from-other-turtles] of turtle i)
+;        [
+;          ask turtle i [
+;            set distance-from-other-turtles replace-item j distance-from-other-turtles dummy
+;          ]
+;        ]
+;        set j j + 1
+;      ]
+;      set i i + 1
+;    ]
+;    set k k + 1
+;  ]
+;end
+;
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Edge Operations ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;;; creates a new lattice
+;to wire-them
+;  ;; iterate over the turtles
+;  let m 0
+;  while [m < count turtles]
+;  [
+;    ;; make edges with the next two neighbors
+;    ;; this makes a lattice with average degree of 4
+;    make-edge turtle m
+;              turtle ((m + 1) mod count turtles)
+;    make-edge turtle m
+;              turtle ((m + 2) mod count turtles)
+;    set m m + 1
+;  ]
+;end
+;
+;;; connects the two turtles
+;to make-edge [node1 node2]
+;  ask node1 [ create-link-with node2  [
+;    set rewired? false
+;  ] ]
+;end
+;
+;;; END
 @#$#@#$#@
 GRAPHICS-WINDOW
 450
@@ -574,23 +664,6 @@ NIL
 NIL
 NIL
 1
-
-PLOT
-19
-368
-371
-646
-opinions
-time
-opinion
-0.0
-10.0
--1.0
-1.0
-true
-false
-"ask turtles [\n    create-temporary-plot-pen (word who)\n    if p-type = \"moderate\" [\n      set-plot-pen-color orange\n    ]\n    if p-type = \"extreme\" [\n      set-plot-pen-color red\n    ]\n  ]" "ask turtles [\n  set-current-plot-pen (word who)\n  plot opinion\n]"
-PENS
 
 SLIDER
 10
@@ -742,17 +815,6 @@ max-moderate-opinion
 NIL
 HORIZONTAL
 
-MONITOR
-463
-256
-637
-313
-Convergence Indicator
-y
-3
-1
-14
-
 SLIDER
 434
 94
@@ -777,28 +839,6 @@ network-type
 network-type
 "fully connected" "small world" "preferential attachment"
 2
-
-MONITOR
-747
-424
-922
-469
-average-path-length
-average-path-length
-3
-1
-11
-
-MONITOR
-743
-365
-935
-410
-clustering-coefficient
-clustering-coefficient
-3
-1
-11
 
 BUTTON
 188
@@ -827,23 +867,6 @@ Convergence Indicator = 0.0 => Central Convergence Convergence Indicator = 0.5 =
 0.0
 1
 
-BUTTON
-310
-15
-376
-48
-NIL
-layout
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 TEXTBOX
 535
 332
@@ -853,6 +876,16 @@ Network Structure\n
 11
 0.0
 1
+
+CHOOSER
+432
+16
+596
+61
+modality
+modality
+"random_opinions" "fromsurvey_opinions"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
