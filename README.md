@@ -40,10 +40,16 @@ The Deffuant model
 3. Imitation processes by pairs of agents
 
 Agents’ properties
-Opinions:                             Segmentations:            
-1. Openness                           1. Gender
-2. InstTrust                          2. Age class
-3. DemTrust                           3. Country area
+
+Opinions:                                      
+1. Openness             
+2. InstTrust                    
+3. DemTrust   
+
+Segmentations:
+1. Gender
+2. Age class
+3. Country area
 
 Tolerance and influence capacity
 1. weighted for each agent
