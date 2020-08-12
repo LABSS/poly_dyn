@@ -1,25 +1,35 @@
 extensions [rnd csv]
-;; This is an adaptation of the  Relative Agreement Model of opinion dynamics (Deffuant et al. 2002)
+;; Original model: an adaptation of the  Relative Agreement Model of opinion dynamics (Deffuant et al. 2002)
 ;; as implemented by Meadows and Cliff (2012) with extensions that enable the exploration of
 ;; the effect of network structure.
 ;; Code for the generation of networks is borrowed from the Small World  and
 ;; Preferential Attachment Models of the Netlogo Models Libary (Wilensky, 1999)
 ;; 1/29/16
 ;; David Adelberg and Dr. Spiro Maroulis
-;;LUCA
-;;
+
+;;Current model by Luca Marconi and Federico Cecconi:
+;; modifications to the original code for dealing with data coming from the European Social Society (ESS) survey 
+;; to study the evolution of the democracy and political perception in the European area. 
+;; The network needs to be redefined, according to both topological properties to be chosen and to the segmentation properties of the agents considered 
+;; (e.g. anagraphical or geographical positioning of the citizens). The model used for analysing the opinions dynamics is still the Deffuant model, 
+;; adapted and extended as follows.
 
 turtles-own [
-  o_openness
+  o_openness  
   o_insttrust
   o_demtrust
-  ;;LUCA
-  ;;
+  ;; Each opinion is aimed at answering to one of the research questions proposed. 
+  ;; o_openness --> describing how much European citizen believe that political representatives reflect the will of the people
+  ;; o_demtrust --> describing how much European citizen believe that political representatives have the skills to manage and decide on the issues they are people spokesmen for
+  ;; o_insttrust --> describing how much European citizen believe that the instruments of democracy brought significant advances in research and application of the will of the people
   ;;
   s_age_class
   s_gender
   s_country_area
-  ;;LUCA
+  ;; Each segmentation variable represents an anagraphical, geographical or personal characteristics of the agents.
+  ;; s_age_class --> age class of the agents: young (age <= 24), adult (age >= 25 & age <= 50), older (age > 50)
+  ;; s_gender --> gender of the agents: male, female
+  ;; s_country_area --> country area of the agents: Northern, Western, Eastern or Southern Europe, Middle East
   ;;
   mu
   theta
@@ -42,11 +52,11 @@ to setup
 
 
   set init_data csv:from-file "file_init.csv"
-  set init_data but-first init_data                                                                       ;; tranne il primo
+  set init_data but-first init_data                                                                       ;; except the first one
   set global_s csv:from-file "file_global.csv"
-  set global_gender []                                                                                    ;; i sessi con le loro probabilità, calcolate dalla survey
-  set global_age_class []                                                                                 ;; le classi di età con le loro probabilità, calcolate dalla survey
-  set global_country_area []                                                                             ;; le aree geografiche con le loro probabilità, calcolate dalla survey
+  set global_gender []                                                                                    ;; genders with probabilities, computed from the survey
+  set global_age_class []                                                                                 ;; age classes with probabilities, computed from the survey
+  set global_country_area []                                                                              ;; country areas with probabilities, computed from the survey
   let c 0
   repeat 3 [
     let raw_global item c global_s
@@ -86,17 +96,17 @@ to setup
     set shape "person"
     set uncertainty 0
 
-    set s_gender first rnd:weighted-one-of-list global_gender [ [p] -> last p ]                                             ;; setta il sesso e la sua distribuzione globale per segmentazione
-    set s_age_class first rnd:weighted-one-of-list global_age_class [ [p] -> last p ]                                       ;; setta la classe di età e la sua distribuzione globale per segmentazione
-    set s_country_area first rnd:weighted-one-of-list global_country_area [ [p] -> last p ]                                 ;; setta l'area geografica e la sua distribuzione globale per segmentazione
-    let riga filter [ i -> (item 0 i) = s_gender and (item 1 i) = s_age_class  and (item 2 i) = s_country_area] init_data   ;; carico il file di inizializzazione, con i valori delle opinioni e delle variabili di segmentazione
-    set riga (item 0 riga)                                                                                                  ;; è una lista di liste, seleziono il primo item
+    set s_gender first rnd:weighted-one-of-list global_gender [ [p] -> last p ]                                             ;; setting up gender and its global distribution for each segmentation
+    set s_age_class first rnd:weighted-one-of-list global_age_class [ [p] -> last p ]                                       ;; setting up age class and its global distribution for each segmentation
+    set s_country_area first rnd:weighted-one-of-list global_country_area [ [p] -> last p ]                                 ;; setting up country area and its global distribution for each segmentation
+    let riga filter [ i -> (item 0 i) = s_gender and (item 1 i) = s_age_class  and (item 2 i) = s_country_area] init_data   ;; loading the initialization file, with the values of the opinions and of the segmentation variables
+    set riga (item 0 riga)                                                                                                  ;; list of lists, here selection of the first item
 
-    set o_openness random-normal (item 3 riga) ( (item 4 riga) * 0.5 )                                                      ;; non voglio il valore esatto ma un valore distribuito normalmente con quella media e quella varianza dal file di inizializzazione
+    set o_openness random-normal (item 3 riga) ( (item 4 riga) * 0.5 )                                                      ;; not an exact value but a value normally distributed with the average and the variance coming from the initialization file (<-- survey)
     set o_insttrust random-normal (item 5 riga) ( (item 6 riga) * 0.5 )
     set o_demtrust random-normal (item 7 riga) ( (item 8 riga) * 0.5 )
 
-    if o_openness < 0 [ set o_openness 0 ]                                                                                  ;; le opinioni devono essere nella scala 0-10
+    if o_openness < 0 [ set o_openness 0 ]                                                                                  ;; opinions must be on a scale of 0-10
     if o_insttrust < 0 [ set o_insttrust 0 ]
     if o_demtrust < 0 [ set o_demtrust 0 ]
 
@@ -114,9 +124,10 @@ end
 
 
 to go
-  ;; LUCA due utilizzi
-  ;; 1) inserisco opinioni dalla survey e vedo come evolvono (inserendo fattori esogeni)
-  ;; 2) opinioni a caso, vedere se lla fine corrispondono a quelle della survey. Abbiamo realizzato un modello, e il modello è il codice
+  ;; The imitation process can be initialized in two mutually exclusive ways:
+  ;; 1. either starting with the initial configuration of the opinions coming from the survey, then analysing the opinions dynamics in the model (adding and tuning exogenous and environmental elements)
+  ;; 2. or randomly choosing the initial configuration of the opinions and assessing whether the final states correspond to the ones described in the survey.
+  ;; In the present version, we select either one or the other initialization methodology: the model we realized through this code allows both possibilities to be chosen.
   ;;
   repeat number-of-people [
     let p1 one-of turtles
