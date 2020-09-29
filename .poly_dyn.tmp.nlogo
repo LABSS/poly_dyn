@@ -128,8 +128,7 @@ to setup
     set theta theta-extreme-distance + random-normal 0 0.01
     if mu > 1 [ set mu 1 ]
     if mu < 0 [ set mu 0 ]
-    if theta > 1 [ set theta 1 ]
-    if theta < 0 [ set theta 0 ]
+    if theta > 1 [ se
     ]
 
 
