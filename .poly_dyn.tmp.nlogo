@@ -128,7 +128,8 @@ to setup
     set theta theta-extreme-distance + random-normal 0 0.01
     if mu > 1 [ set mu 1 ]
     if mu < 0 [ set mu 0 ]
-    if theta > 1 [ se
+    if theta > 1 [ set theta 1 ]
+    if theta < 0 [ set theta 0 ]
     ]
 
 
@@ -197,13 +198,13 @@ to interact [u v]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-377
-227
-660
-511
+309
+82
+707
+481
 -1
 -1
-3.022
+4.29
 1
 10
 1
@@ -258,10 +259,10 @@ NIL
 1
 
 SLIDER
-11
-181
-200
-214
+13
+96
+202
+129
 number-of-people
 number-of-people
 20
@@ -281,7 +282,7 @@ mu-adjustment-rate
 mu-adjustment-rate
 0.01
 1
-0.91
+0.96
 0.05
 1
 NIL
@@ -289,24 +290,24 @@ HORIZONTAL
 
 SLIDER
 10
-279
+272
 299
-312
+305
 theta-extreme-distance
 theta-extreme-distance
 0.01
 1
-0.11
+0.01
 0.05
 1
 NIL
 HORIZONTAL
 
 SLIDER
-434
-94
-606
-127
+13
+138
+185
+171
 rewiring-probability
 rewiring-probability
 0
@@ -318,10 +319,10 @@ NIL
 HORIZONTAL
 
 CHOOSER
-437
-139
-617
-184
+14
+177
+194
+222
 network-type
 network-type
 "fully connected" "small world" "preferential attachment"
@@ -345,20 +346,20 @@ NIL
 1
 
 CHOOSER
-432
-16
-596
-61
+9
+317
+173
+362
 modality
 modality
 "random_opinions" "fromsurvey_opinions"
 0
 
 SLIDER
-31
-110
-203
-143
+15
+57
+187
+90
 max-opinion-value
 max-opinion-value
 1
@@ -370,11 +371,11 @@ NIL
 HORIZONTAL
 
 PLOT
-743
-84
-943
-234
-plot opinions
+717
+85
+1147
+433
+plot opinions sd
 NIL
 NIL
 0.0
@@ -385,7 +386,29 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot standard-deviation [o_openness] of turtles"
+"default" 1.0 0 -14439633 true "" "plot standard-deviation [o_openness] of turtles"
+"pen-1" 1.0 0 -5298144 true "" "plot standard-deviation [o_demtrust] of turtles"
+"pen-2" 1.0 0 -16448764 true "" "plot standard-deviation [o_insttrust] of turtles"
+
+PLOT
+725
+450
+925
+600
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -14439633 true "" "plot mean [o_openness] of turtles"
+"pen-1" 1.0 0 -5298144 true "" "plot mean [o_demtrust] of turtles"
+"pen-2" 1.0 0 -16448764 true "" "plot mean [o_insttrust] of turtles"
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -729,6 +752,18 @@ NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="200"/>
+    <metric>mean [o_openness] of turtles</metric>
+    <metric>mean [o_demtrust] of turtles</metric>
+    <metric>mean [o_insttrust] of turtles</metric>
+    <steppedValueSet variable="theta-extreme-distance" first="0" step="0.025" last="1"/>
+    <steppedValueSet variable="mu-adjustment-rate" first="0" step="0.025" last="1"/>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
