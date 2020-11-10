@@ -282,7 +282,7 @@ mu-adjustment-rate
 mu-adjustment-rate
 0.01
 1
-0.925
+1.0
 0.05
 1
 NIL
@@ -353,7 +353,7 @@ CHOOSER
 modality
 modality
 "random_opinions" "fromsurvey_opinions"
-0
+1
 
 SLIDER
 15
@@ -762,6 +762,57 @@ NetLogo 6.1.1
     <metric>mean [o_insttrust] of turtles</metric>
     <steppedValueSet variable="theta-extreme-distance" first="0" step="0.025" last="1"/>
     <steppedValueSet variable="mu-adjustment-rate" first="0" step="0.025" last="1"/>
+  </experiment>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="theta-extreme-distance">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-opinion-value">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="network-type">
+      <value value="&quot;small world&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-adjustment-rate">
+      <value value="0.925"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="modality">
+      <value value="&quot;random_opinions&quot;"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="200"/>
+    <metric>mean [o_openness] of turtles</metric>
+    <metric>mean [o_demtrust] of turtles</metric>
+    <metric>mean [o_insttrust] of turtles</metric>
+    <steppedValueSet variable="theta-extreme-distance" first="0.5" step="0.005" last="1"/>
+    <enumeratedValueSet variable="max-opinion-value">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="network-type">
+      <value value="&quot;small world&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="number-of-people">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="mu-adjustment-rate" first="0.8" step="0.005" last="1"/>
+    <enumeratedValueSet variable="modality">
+      <value value="&quot;fromsurvey_opinions&quot;"/>
+    </enumeratedValueSet>
   </experiment>
 </experiments>
 @#$#@#$#@
