@@ -101,10 +101,16 @@ to setup
     set s_country_area first rnd:weighted-one-of-list global_country_area [ [p] -> last p ]                                 ;; setting up country area and its global distribution for each segmentation
     let riga filter [ i -> (item 0 i) = s_gender and (item 1 i) = s_age_class  and (item 2 i) = s_country_area] init_data   ;; loading the initialization file, with the values of the opinions and of the segmentation variables
     set riga (item 0 riga)                                                                                                  ;; list of lists, here selection of the first item
-
+    ifelse modality = "fromsurvey_opinions" [
     set o_openness random-normal (item 3 riga) ( (item 4 riga) * 0.5 )                                                      ;; not an exact value but a value normally distributed with the average and the variance coming from the initialization file (<-- survey)
     set o_insttrust random-normal (item 5 riga) ( (item 6 riga) * 0.5 )
     set o_demtrust random-normal (item 7 riga) ( (item 8 riga) * 0.5 )
+    ]
+    [
+      set o_openness random max-opinion-value                                                     ;; not an exact value but a value normally distributed with the average and the variance coming from the initialization file (<-- survey)
+      set o_insttrust random max-opinion-value
+      set o_demtrust random max-opinion-value
+    ]
 
     if o_openness < 0 [ set o_openness 0 ]                                                                                  ;; opinions must be on a scale of 0-10
     if o_insttrust < 0 [ set o_insttrust 0 ]
@@ -145,11 +151,23 @@ to go
   ;;
   repeat number-of-people [
     let p1 one-of turtles
-    let p2 one-of other turtles
+    let p2 nobody
+    if network-type = "fully connected" [ set p2 one-of other turtles ]
+    if network-type = "geografic" [set p2 find_agent p1 (other turtles)]
     interact p1 p2
   ]
   ; update-globals
   tick
+end
+
+to-report find_agent [agent pops]
+  ifelse random-float 1 < 0.8
+  [ ; same nation
+    report one-of pops with [s_country_area = [s_country_area] of agent]
+  ]
+  [
+    report one-of pops
+  ]
 end
 
 ;; Makes p1 and p2 interact according to the relative agreement model
@@ -266,8 +284,8 @@ SLIDER
 number-of-people
 number-of-people
 20
-100
-100.0
+1000
+1000.0
 1
 1
 NIL
@@ -282,7 +300,7 @@ mu-adjustment-rate
 mu-adjustment-rate
 0.01
 1
-1.0
+0.96
 0.05
 1
 NIL
@@ -297,23 +315,8 @@ theta-extreme-distance
 theta-extreme-distance
 0.01
 1
-1.0
+0.36
 0.05
-1
-NIL
-HORIZONTAL
-
-SLIDER
-13
-138
-185
-171
-rewiring-probability
-rewiring-probability
-0
-1
-0.1
-0.01
 1
 NIL
 HORIZONTAL
@@ -325,7 +328,7 @@ CHOOSER
 222
 network-type
 network-type
-"fully connected" "small world" "preferential attachment"
+"fully connected" "geografic" "geografic and criteria"
 1
 
 BUTTON
@@ -358,12 +361,12 @@ modality
 SLIDER
 15
 57
-187
+203
 90
 max-opinion-value
 max-opinion-value
 1
-100
+1000
 10.0
 1
 1
