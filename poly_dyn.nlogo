@@ -92,7 +92,8 @@ to setup
    set c c + 1
   ]
   crt number-of-people [
-    setxy random-xcor random-ycor
+
+    set size 1
     set shape "person"
     set uncertainty 0
 
@@ -107,9 +108,30 @@ to setup
     set o_demtrust random-normal (item 7 riga) ( (item 8 riga) * 0.5 )
     ]
     [
-      set o_openness random max-opinion-value                                                     ;; not an exact value but a value normally distributed with the average and the variance coming from the initialization file (<-- survey)
-      set o_insttrust random max-opinion-value
-      set o_demtrust random max-opinion-value
+      set o_openness random-float  1                                                    ;; not an exact value but a value normally distributed with the average and the variance coming from the initialization file (<-- survey)
+      set o_insttrust random-float 1
+      set o_demtrust random-float 1
+    ]
+
+    if s_country_area = 1[
+      set xcor 10 + 4 - random-float 8
+      set ycor 10 + 4 - random-float 8
+    ]
+    if s_country_area = 2[
+      set xcor -10 + 4 - random-float 8
+      set ycor 10 + 4 - random-float 8
+    ]
+    if s_country_area = 3[
+      set xcor -10 + 4 - random-float 8
+      set ycor -10 + 4 - random-float 8
+    ]
+    if s_country_area = 4[
+      set xcor 10 + 4 - random-float 8
+      set ycor -10 + 4 - random-float 8
+    ]
+    if s_country_area = 5[
+      set xcor 0 + 4 - random-float 8
+      set ycor 0 + 4 - random-float 8
     ]
 
     if o_openness < 0 [ set o_openness 0 ]                                                                                  ;; opinions must be on a scale of 0-10
@@ -125,10 +147,13 @@ to setup
     ;  dalla tabella cvs carica opness trust (mean e dev std) in rnd normale]
   ]
 
-  ask turtles [                                                                                                             ;; opinions normalization
-    set o_openness o_openness / max-opinion-value
-    set o_demtrust o_demtrust / max-opinion-value
-    set o_insttrust o_insttrust / max-opinion-value
+  ask turtles [
+    ;; opinions normalization
+    if modality = "fromsurvey_opinions" [
+     set o_openness o_openness / max-opinion-value
+     set o_demtrust o_demtrust / max-opinion-value
+     set o_insttrust o_insttrust / max-opinion-value
+    ]
 
     set mu mu-adjustment-rate + random-normal 0 0.01
     set theta theta-extreme-distance + random-normal 0 0.01
@@ -138,7 +163,7 @@ to setup
     if theta < 0 [ set theta 0 ]
     ]
 
-
+  draw_agent_color
   reset-ticks
 end
 
@@ -152,16 +177,17 @@ to go
   repeat number-of-people [
     let p1 one-of turtles
     let p2 nobody
-    if network-type = "fully connected" [ set p2 one-of other turtles ]
-    if network-type = "geografic" [set p2 find_agent p1 (other turtles)]
+    if network-type = "fully connected" [ ask p1 [set p2 one-of other turtles ]]
+    if network-type = "geografic" [ask p1 [set p2 find_agent p1 (other turtles)]]
     interact p1 p2
   ]
   ; update-globals
+  draw_agent_color
   tick
 end
 
 to-report find_agent [agent pops]
-  ifelse random-float 1 < 0.8
+  ifelse random-float 1 < geografic_rate
   [ ; same nation
     report one-of pops with [s_country_area = [s_country_area] of agent]
   ]
@@ -201,8 +227,11 @@ to interact [u v]
 
 
     if abs([o_openness] of u - [o_openness] of v) <= theta_w [
+
       ask u [set o_openness (o_openness + mu_w * ([o_openness] of v - o_openness))]
       ask v [set o_openness (o_openness + mu_w * ([o_openness] of u - o_openness))]
+
+
     ]
     if abs([o_insttrust] of u - [o_insttrust] of v) <= theta_w [
       ask u [set o_insttrust (o_insttrust + mu_w * ([o_insttrust] of v - o_insttrust))]
@@ -214,15 +243,21 @@ to interact [u v]
     ]
 
 end
+
+to draw_agent_color
+  ask turtles [
+    set color (rgb 10 (o_openness * 255) 10)
+  ]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-309
-82
-707
-481
+304
+10
+922
+629
 -1
 -1
-4.29
+14.9
 1
 10
 1
@@ -232,10 +267,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--45
-45
--45
-45
+-20
+20
+-20
+20
 1
 1
 1
@@ -283,7 +318,7 @@ SLIDER
 129
 number-of-people
 number-of-people
-20
+2
 1000
 1000.0
 1
@@ -300,7 +335,7 @@ mu-adjustment-rate
 mu-adjustment-rate
 0.01
 1
-0.96
+0.75
 0.05
 1
 NIL
@@ -315,7 +350,7 @@ theta-extreme-distance
 theta-extreme-distance
 0.01
 1
-0.36
+0.25
 0.05
 1
 NIL
@@ -356,7 +391,7 @@ CHOOSER
 modality
 modality
 "random_opinions" "fromsurvey_opinions"
-1
+0
 
 SLIDER
 15
@@ -374,10 +409,10 @@ NIL
 HORIZONTAL
 
 PLOT
-717
-85
-1147
-433
+944
+130
+1374
+478
 plot opinions sd
 NIL
 NIL
@@ -394,10 +429,10 @@ PENS
 "pen-2" 1.0 0 -16448764 true "" "plot standard-deviation [o_insttrust] of turtles"
 
 PLOT
-725
-450
-1144
-701
+946
+489
+1365
+740
 plot 1
 NIL
 NIL
@@ -412,6 +447,21 @@ PENS
 "default" 1.0 0 -14439633 true "" "plot mean [o_openness] of turtles"
 "pen-1" 1.0 0 -5298144 true "" "plot mean [o_demtrust] of turtles"
 "pen-2" 1.0 0 -16448764 true "" "plot mean [o_insttrust] of turtles"
+
+SLIDER
+13
+139
+185
+172
+geografic_rate
+geografic_rate
+0.75
+1
+1.0
+0.001
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -756,66 +806,44 @@ NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="experiment" repetitions="25" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>mean [o_openness] of turtles</metric>
-    <metric>mean [o_demtrust] of turtles</metric>
-    <metric>mean [o_insttrust] of turtles</metric>
-    <steppedValueSet variable="theta-extreme-distance" first="0" step="0.025" last="1"/>
-    <steppedValueSet variable="mu-adjustment-rate" first="0" step="0.025" last="1"/>
-  </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>count turtles</metric>
+    <timeLimit steps="150"/>
+    <metric>standard-deviation [o_openness] of turtles with [s_country_area = 1]</metric>
+    <metric>mean [o_openness] of turtles with [s_country_area = 1]</metric>
+    <metric>standard-deviation [o_openness] of turtles with [s_country_area = 2]</metric>
+    <metric>mean [o_openness] of turtles with [s_country_area = 2]</metric>
+    <metric>standard-deviation [o_openness] of turtles with [s_country_area = 3]</metric>
+    <metric>mean [o_openness] of turtles with [s_country_area = 3]</metric>
+    <metric>standard-deviation [o_openness] of turtles with [s_country_area = 4]</metric>
+    <metric>mean [o_openness] of turtles with [s_country_area = 4]</metric>
+    <metric>standard-deviation [o_openness] of turtles with [s_country_area = 5]</metric>
+    <metric>mean [o_openness] of turtles with [s_country_area = 5]</metric>
     <enumeratedValueSet variable="theta-extreme-distance">
-      <value value="1"/>
+      <value value="0.25"/>
+      <value value="0.5"/>
+      <value value="0.75"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="max-opinion-value">
       <value value="10"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="rewiring-probability">
-      <value value="0.1"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="network-type">
-      <value value="&quot;small world&quot;"/>
+      <value value="&quot;geografic&quot;"/>
+      <value value="&quot;fully_connected&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="number-of-people">
-      <value value="100"/>
+      <value value="1000"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="mu-adjustment-rate">
-      <value value="0.925"/>
+      <value value="0.25"/>
+      <value value="0.5"/>
+      <value value="0.75"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="modality">
       <value value="&quot;random_opinions&quot;"/>
     </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>mean [o_openness] of turtles</metric>
-    <metric>mean [o_demtrust] of turtles</metric>
-    <metric>mean [o_insttrust] of turtles</metric>
-    <steppedValueSet variable="theta-extreme-distance" first="0.5" step="0.005" last="1"/>
-    <enumeratedValueSet variable="max-opinion-value">
-      <value value="10"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="rewiring-probability">
-      <value value="0.1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="network-type">
-      <value value="&quot;small world&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="number-of-people">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="mu-adjustment-rate" first="0.8" step="0.005" last="1"/>
-    <enumeratedValueSet variable="modality">
-      <value value="&quot;fromsurvey_opinions&quot;"/>
-    </enumeratedValueSet>
+    <steppedValueSet variable="geografic_rate" first="0.75" step="0.025" last="1"/>
   </experiment>
 </experiments>
 @#$#@#$#@
